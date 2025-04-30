@@ -1,0 +1,92 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+#include <Servo.h>
+
+const char* ssid = "Naghul Pranav's S23";  // your WiFi name
+const char* password = "dau2hpnphz2exz";
+
+ESP8266WebServer server(80);
+
+Servo servo_D0;
+Servo servo_D4;
+Servo servo_D5;
+Servo servo_D6;
+Servo servo_D7;
+Servo servo_D8;
+
+void setup() {
+  Serial.begin(115200);
+
+  // Connect to Wi-Fi
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi...");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("WiFi connected!");
+  Serial.println(WiFi.localIP());
+
+  // Attach servos
+  servo_D0.attach(D0, 500, 2500);
+  servo_D4.attach(D4, 500, 2500);
+  servo_D5.attach(D5, 500, 2500);
+  servo_D6.attach(D6, 500, 2500);
+  servo_D7.attach(D7, 500, 2500);
+  servo_D8.attach(D8, 500, 2500);
+
+  // Setup web server routes
+  server.on("/", handleRoot);
+  server.on("/setServo", handleSetServo);
+
+  server.begin();
+  Serial.println("HTTP server started");
+}
+
+void loop() {
+  server.handleClient();
+}
+
+void handleRoot() {
+  String html = "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'>";
+  html += "<title>Servo Controller</title></head><body><h1>ESP8266 Servo Controller</h1>";
+
+  for (int i = 0; i <= 5; i++) {
+    html += "<h3>Servo D" + String((i == 0) ? 0 : i + 3) + ": <span id='val" + String(i) + "'>90</span></h3>";
+    html += "<input type='range' min='0' max='180' value='90' onchange='updateServo(" + String(i) + ",this.value)'/><br><br>";
+  }
+
+  html += "<script>";
+  html += "function updateServo(servo, angle) {";
+  html += "document.getElementById('val'+servo).innerText = angle;";
+  html += "var xhr = new XMLHttpRequest();";
+  html += "xhr.open('GET', '/setServo?servo=' + servo + '&angle=' + angle, true);";
+  html += "xhr.send();";
+  html += "}";
+  html += "</script></body></html>";
+
+  server.send(200, "text/html", html);
+}
+
+
+void handleSetServo() {
+  if (server.hasArg("servo") && server.hasArg("angle")) {
+    int servoNum = server.arg("servo").toInt();
+    int angle = server.arg("angle").toInt();
+    angle = constrain(angle, 0, 180);
+
+    switch (servoNum) {
+      case 0: servo_D0.write(angle); break;
+      case 1: servo_D4.write(angle); break;
+      case 2: servo_D5.write(angle); break;
+      case 3: servo_D6.write(angle); break;
+      case 4: servo_D7.write(angle); break;
+      case 5: servo_D8.write(angle); break;
+    }
+
+    server.send(200, "text/plain", "OK");
+  } else {
+    server.send(400, "text/plain", "Bad Request");
+  }
+}
